@@ -4,23 +4,35 @@ jobs:
   build:
     docker:
       - image: cimg/node:20.18
-    working_directory: ~/project
     steps:
       - checkout
-
       - run:
-          name: Install Dependencies
+          name: Install dependencies
           command: npm install
-
       - run:
-          name: Run Tests
+          name: Run tests
           command: npm test
+
+  deploy:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - add_ssh_keys
+      - run:
+          name: Deploy to EC2
+          command: |
+            ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "
+              cd ${APP_DIR} &&
+              git pull origin main &&
+              npm install &&
+              pm2 restart mathapp || pm2 start bin/www --name mathapp
+            "
 
 workflows:
   version: 2
-  build_and_test:
+  build_and_deploy:
     jobs:
-      - build:
-          filters:
-            branches:
-              only: main
+      - build
+      - deploy:
+          requires:
+            - build
